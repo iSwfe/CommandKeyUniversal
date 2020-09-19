@@ -1,4 +1,7 @@
-﻿; macOS中的快捷键Control(!) / Option(#) / Command(^)
+﻿;最大输入速率:10k
+#MaxHotkeysPerInterval 10240
+
+; macOS中的快捷键Control(!) / Option(#) / Command(^)
 !^F::Send {F11}
 ^q::Send !{F4}
 
