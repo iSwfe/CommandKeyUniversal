@@ -1,0 +1,19 @@
+#!/usr/bin/expect -f
+set HOST	[lindex $argv 0]
+set PORT	[lindex $argv 1]
+set USER	[lindex $argv 2]
+set PASSWD	[lindex $argv 3]
+set CMD		[lindex $argv 4]
+set timeout	30
+
+spawn ssh $USER@$HOST -p $PORT
+expect {
+    "*yes/no" {send "yes\r"; exp_continue}
+    "*password:" {send "$PASSWD\r"}
+}
+
+expect "]*"
+send $CMD
+send "\r"
+
+interact
