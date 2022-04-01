@@ -6,8 +6,8 @@
 ^q::Send !{F4}
 
 
-#WheelDown::WheelUp
-#WheelUp::WheelDown
+;WheelDown::WheelUp
+;WheelUp::WheelDown
 
 
 CapsLock::Return    ; 先禁用CapsLock键
