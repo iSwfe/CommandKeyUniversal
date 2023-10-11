@@ -1,13 +1,28 @@
 My CapsLock Arrows Instructions
 
-[功能:按住修饰键[CapsLock（其实被映射成了Fn键）时]
-	1: i/j/k/l => up/left/down/right.
-	2: u/o => 行内字符串首/尾.(command+left/right)
-	2: n和/ => 行首/行尾.(control+a/e)(不同于home/end)
-	3: y/h => pageUp/pageDown.
-	4: 7/8 => 选中直至上一个/下一个字符串首/尾
-	5: 9/0 => 将光标移至上一个/下一个字符串首/尾
-	6: m/,/. => backspace/delete/enter.
-	7: q => Escape.
-	8: spacebar => left_control+spacebar.(切换输入法)
-	9: enter => capslock.(还原物理键CapsLock键的原生功能)
+CapsLock（作为修饰键Fn，按住并配合下面的按键实现组合功能）+
+[方向键功能]
+  I: 上
+  K: 下
+  J: 左
+  L: 右
+[操作功能]
+  M: 向前删除
+  <: 向后删除
+  >: 回车
+  Q: Esc
+[移动光标功能]
+  U: 行首
+  O: 行尾
+  Y: 上一页
+  H: 下一页
+  (: 按一个单词向前移动光标
+  ): 按一个单词向后移动光标
+[其他功能]
+  空格Space: 切换中英文输入法（其实按一下CapsLock就可以直接切换了）
+  W: 显示所有打开的窗口
+  S: 显示桌面
+  A: 前一个桌面空间
+  D: 后一个桌面空间
+  1: 前一个标签页
+  2: 后一个标签页
