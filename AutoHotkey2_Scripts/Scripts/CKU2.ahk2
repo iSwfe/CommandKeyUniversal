@@ -25,7 +25,7 @@ $*CapsLock Up:: {
     ; 300ms内松开，切换输入法
     if (A_TickCount - capsDownTime < 300) {
         Send "{Ctrl Down}{Shift}{Ctrl Up}"
-        showLang()
+        ; showLang()
     }
 }
 
