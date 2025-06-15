@@ -1,0 +1,169 @@
+#Requires AutoHotkey v2.0
+#SingleInstance Force
+
+; 设置 CapsLock 键的状态为始终关闭
+SetCapsLockState("AlwaysOff")
+
+; CapsLock是否第一次按下
+capsDown := false
+; CapsLock按下的时间戳(毫秒ms)
+capsDownTime := 0
+
+; 注册 CapsLock 第一次按下事件
+$*CapsLock:: {
+    global capsDown, capsDownTime
+    if (!capsDown) {
+        capsDown := true
+        capsDownTime := A_TickCount
+    }
+}
+
+; 注册 CapsLock 松开事件
+$*CapsLock Up:: {
+    global capsDown, capsDownTime
+    capsDown := false
+    ; 300ms内松开，切换输入法
+    if (A_TickCount - capsDownTime < 300) {
+        Send "{Ctrl Down}{Shift}{Ctrl Up}"
+        showLang()
+    }
+}
+
+showLang() {
+    ToolTip()
+    Sleep 200
+
+    ; 当前活动窗口句柄
+    hWnd := WinActive("A")
+    ; 当前窗口的线程ID
+    tid := DllCall("GetWindowThreadProcessId", "Ptr", hWnd, "UInt*", 0)
+    ; 当前窗口输入法的语言标识
+    LangID := DllCall("GetKeyboardLayout", "UInt", tid, "Ptr")
+    LangHex := Format("{:04X}", LangID & 0xFFFF)
+
+    langStr := unset
+    switch LangHex {
+        case 0409:
+            langStr := "ENG"
+        case 0804:
+            langStr := " 中 "
+    }
+    msg := langStr
+
+    ; 获取鼠标光标位置
+    ; MouseGetPos(&x, &y)
+
+    ; 获取文本插入点光标坐标
+    x := y := w := h := 0
+    CoordMode("ToolTip", "Screen")
+    if (hwnd := GetCaretPosEx(&x, &y, &w, &h)) {
+        ; 显示输入法指示器
+        ToolTip(msg, x, y+50)
+        SetTimer(() => ToolTip(), -2000)
+    }
+}
+
+; 定义组合键行为
+#HotIf GetKeyState("CapsLock", "P")
+    ; q => Esc
+    q::Esc
+    ; w/a/d/1/2 => 任务视图/向左一个桌面/向右一个桌面/上一个标签页/下一个标签页
+    w::#Tab
+    a::^#Left
+    d::^#Right
+    1::^+Tab
+    2::^Tab
+    ; i/j/k/l => 方向键
+    i::Up
+    j::Left
+    k::Down
+    l::Right
+    ; u/o/9/0/y/h => Home/End/上一个单词/下一个单词
+    u::Home
+    o::End
+    9::^Left
+    0::^Right
+    y::PgUp
+    h::PgDn
+    ; m/,/. => Backspace/Delete/Enter
+    m::Backspace
+    ,::Delete
+    .::Enter
+    ; Space => PowerToys命令面板
+    Space::!Space
+#HotIf
+
+
+; 获取文本插入点光标坐标
+; https://www.autoahk.com/archives/44158
+GetCaretPosEx(&x?, &y?, &w?, &h?) {
+    x := h := w := h := 0
+    static iUIAutomation := 0, hOleacc := 0, IID_IAccessible, guiThreadInfo, _ := init()
+    if !iUIAutomation || ComCall(8, iUIAutomation, "ptr*", eleFocus := ComValue(13, 0), "int") || !eleFocus.Ptr
+        goto useAccLocation
+    if !ComCall(16, eleFocus, "int", 10002, "ptr*", valuePattern := ComValue(13, 0), "int") && valuePattern.Ptr
+        if !ComCall(5, valuePattern, "int*", &isReadOnly := 0) && isReadOnly
+            return 0
+    useAccLocation:
+    ; use IAccessible::accLocation
+    hwndFocus := DllCall("GetGUIThreadInfo", "uint", DllCall("GetWindowThreadProcessId", "ptr", WinExist("A"), "ptr", 0, "uint"), "ptr", guiThreadInfo) && NumGet(guiThreadInfo, A_PtrSize == 8 ? 16 : 12, "ptr") || WinExist()
+    if hOleacc && !DllCall("Oleacc\AccessibleObjectFromWindow", "ptr", hwndFocus, "uint", 0xFFFFFFF8, "ptr", IID_IAccessible, "ptr*", accCaret := ComValue(13, 0), "int") && accCaret.Ptr {
+        NumPut("ushort", 3, varChild := Buffer(24, 0))
+        if !ComCall(22, accCaret, "int*", &x := 0, "int*", &y := 0, "int*", &w := 0, "int*", &h := 0, "ptr", varChild, "int")
+            return hwndFocus
+    }
+    if iUIAutomation && eleFocus {
+        ; use IUIAutomationTextPattern2::GetCaretRange
+        if ComCall(16, eleFocus, "int", 10024, "ptr*", textPattern2 := ComValue(13, 0), "int") || !textPattern2.Ptr
+            goto useGetSelection
+        if ComCall(10, textPattern2, "int*", &isActive := 0, "ptr*", caretTextRange := ComValue(13, 0), "int") || !caretTextRange.Ptr || !isActive
+            goto useGetSelection
+        if !ComCall(10, caretTextRange, "ptr*", &rects := 0, "int") && rects && (rects := ComValue(0x2005, rects, 1)).MaxIndex() >= 3 {
+            x := rects[0], y := rects[1], w := rects[2], h := rects[3]
+            return hwndFocus
+        }
+        useGetSelection:
+        ; use IUIAutomationTextPattern::GetSelection
+        if textPattern2.Ptr
+            textPattern := textPattern2
+        else if ComCall(16, eleFocus, "int", 10014, "ptr*", textPattern := ComValue(13, 0), "int") || !textPattern.Ptr
+            goto useGUITHREADINFO
+        if ComCall(5, textPattern, "ptr*", selectionRangeArray := ComValue(13, 0), "int") || !selectionRangeArray.Ptr
+            goto useGUITHREADINFO
+        if ComCall(3, selectionRangeArray, "int*", &length := 0, "int") || length <= 0
+            goto useGUITHREADINFO
+        if ComCall(4, selectionRangeArray, "int", 0, "ptr*", selectionRange := ComValue(13, 0), "int") || !selectionRange.Ptr
+            goto useGUITHREADINFO
+        if ComCall(10, selectionRange, "ptr*", &rects := 0, "int") || !rects
+            goto useGUITHREADINFO
+        rects := ComValue(0x2005, rects, 1)
+        if rects.MaxIndex() < 3 {
+            if ComCall(6, selectionRange, "int", 0, "int") || ComCall(10, selectionRange, "ptr*", &rects := 0, "int") || !rects
+                goto useGUITHREADINFO
+            rects := ComValue(0x2005, rects, 1)
+            if rects.MaxIndex() < 3
+                goto useGUITHREADINFO
+        }
+        x := rects[0], y := rects[1], w := rects[2], h := rects[3]
+        return hwndFocus
+    }
+    useGUITHREADINFO:
+    if hwndCaret := NumGet(guiThreadInfo, A_PtrSize == 8 ? 48 : 28, "ptr") {
+        if DllCall("GetWindowRect", "ptr", hwndCaret, "ptr", clientRect := Buffer(16)) {
+            w := NumGet(guiThreadInfo, 64, "int") - NumGet(guiThreadInfo, 56, "int")
+            h := NumGet(guiThreadInfo, 68, "int") - NumGet(guiThreadInfo, 60, "int")
+            DllCall("ClientToScreen", "ptr", hwndCaret, "ptr", guiThreadInfo.Ptr + 56)
+            x := NumGet(guiThreadInfo, 56, "int")
+            y := NumGet(guiThreadInfo, 60, "int")
+            return hwndCaret
+        }
+    }
+    return 0
+    static init() {
+        try
+            iUIAutomation := ComObject("{E22AD333-B25F-460C-83D0-0581107395C9}", "{30CBE57D-D9D0-452A-AB13-7AC5AC4825EE}")
+        hOleacc := DllCall("LoadLibraryW", "str", "Oleacc.dll", "ptr")
+        NumPut("int64", 0x11CF3C3D618736E0, "int64", 0x719B3800AA000C81, IID_IAccessible := Buffer(16))
+        guiThreadInfo := Buffer(A_PtrSize == 8 ? 72 : 48), NumPut("uint", guiThreadInfo.Size, guiThreadInfo)
+    }
+}
