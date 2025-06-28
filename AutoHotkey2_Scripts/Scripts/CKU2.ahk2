@@ -20,33 +20,36 @@ A_MaxHotkeysPerInterval := 10000000
 A_HotkeyInterval := 100000
 
 
-; 设置 CapsLock 键的状态为始终关闭
+; 屏蔽 CapsLock 实体键功能
 SetCapsLockState("AlwaysOff")
+; Shift+CapsLock => CapsLock（预留 CapsLock 按键功能，仅用于临时切换）
++CapsLock::CapsLock
 
-; CapsLock是否第一次按下
-capsDown := false
-; CapsLock按下的时间戳(毫秒ms)
-capsDownTime := 0
-
-; 注册 CapsLock 第一次按下事件
+; CapsLock按下时的时间戳(毫秒ms)
+; 亦可表达为按键的状态：
+;   <=0 已释放
+;   >0  已按下
+capsTime := 0
+; 注册 CapsLock 动作事件（触发时机：按下/释放）
 $*CapsLock:: {
-    global capsDown, capsDownTime
-    if (!capsDown) {
-        capsDown := true
-        capsDownTime := A_TickCount
+    global capsTime
+    if (capsTime > 0) {
+        ; 释放动作，不做处理
+        return
     }
+    ; 按下动作，同步状态
+    capsTime := A_TickCount
 }
-
-; 注册 CapsLock 松开事件
+; 注册 CapsLock 释放事件
 $*CapsLock Up:: {
-    global capsDown, capsDownTime
-    capsDown := false
-    ; 300ms内松开，切换输入法
-    if (A_TickCount - capsDownTime < 100) {
-        ;Send "{Ctrl Down}{Shift}{Ctrl Up}"
+    global capsTime
+    ; 未触发组合键 并且 在一定时长内松开CapsLock，则切换输入法
+    if (A_TickCount - capsTime < 100) {
         Send "#{Space}"
         ; showLang()
     }
+    ; 释放动作，同步状态
+    capsTime := 0
 }
 
 ; Shift+CapsLock => CapsLock（预留一个CapsLock按键功能）
